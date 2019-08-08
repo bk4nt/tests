@@ -1,0 +1,135 @@
+Main	Alive ! Configuring SPI + Wire...
+Main	Now checking the battery...
+Bat	Setup starting...
+Bat	Started
+Main	If we get here, battery is Ok
+Main	Starting watchdog task...
+Wdog	Setup starting...
+WDog	Reason for last Reset: Low-voltage Detect Reset
+WDog	Started
+Main	Starting display and buttons tasks...
+u8g2	Setup starting...
+Buttons	Setup starting...
+Buttons	Started
+u8g2	Started
+Main	Now read any config file...
+SDCard	Setup starting...
+SDCard	Read hello: Bonjour !
+SDCard	Read utcoffset: 7200
+SDCard	Read radiosecret: ***..**
+SDCard	Read radiochannel: **
+SDCard	Config read from SD card.
+SDCard	We had read hello : Bonjour !
+SDCard	Started
+Main	Now starting other tasks...
+Main	Waiting for other tasks setups...
+MPU	Setup starting...
+GPS	Setup starting...
+Radio	Setup starting...
+Radio	Configuring...
+Radio	Status now is :
+STATUS		 = 0x0e RX_DR=0 TX_DS=0 MAX_RT=0 RX_P_NO=7 TX_FULL=0
+RX_ADDR_P0-1	 = 0xccccccccc3 0xcccccccc3c
+RX_ADDR_P2-5	 = 0x33 0xce 0x3e 0xe3
+TX_ADDR		 = 0xe7e7e7e7e7
+RX_PW_P0-6	 = 0x20 0x20 0x20 0x20 0x20 0x20
+EN_AA		 = 0x3e
+EN_RXADDR	 = 0x3f
+RF_CH		 = 0x5a
+RF_SETUP	 = 0x21
+CONFIG		 = 0x0f
+DYNPD/FEATURE	 = 0x3f 0x04
+Data Rate	 = 250KBPS
+Model		 = nRF24L01+
+CRC Length	 = 16 bits
+PA Power	 = PA_MIN
+Radio	Started
+MPU	Started
+GPS	SysTime update via RTC
+GPS	SysTime set using RTC, to 08/08/2019 04:27:49
+GPS	Started
+Main	Tasks started
+From 1 to 0 type 0 Hj9G 1565238470 1598 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+MPU	Initialise 0.69
+MPU	Initialise 0.69
+MPU	Initialise 0.68
+MPU	Initialised, 8 samples where skipped
+GPS	Got a first fix !
+GPS	Setting time with UTC offset = 7200 seconds
+GPS	SysTime now set to 08/08/2019 04:27:50
+Radio	Send PACKET_TIME... ok.
+From 1 to 0 type 0 Hj9G 1565238472 1601 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238472 1600 1599;957;231;0;0;2;1565238470; (data length 30)
+From 1 to 0 type 0 Hj9G 1565238473 1602 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238474 1603 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238475 1604 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+MPU	Rate was 44.80 samples per sec
+From 1 to 0 type 0 Hj9G 1565238476 1605 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238477 1606 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238478 1607 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238479 1608 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238480 1609 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+Radio	Send PACKET_TIME... ok.
+From 1 to 0 type 0 Hj9G 1565238482 1612 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238482 1611 1610;957;231;0;0;2;1565238479; (data length 30)
+From 1 to 0 type 0 Hj9G 1565238483 1613 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238484 1614 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238485 1615 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+MPU	Rate was 90.40 samples per sec
+From 1 to 0 type 0 Hj9G 1565238486 1616 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238487 1617 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238488 1618 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238489 1619 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238490 1620 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+Radio	Send PACKET_TIME... ok.
+From 1 to 0 type 0 Hj9G 1565238492 1623 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238492 1622 1621;957;231;0;0;2;1565238489; (data length 30)
+From 1 to 0 type 0 Hj9G 1565238493 1624 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238494 1625 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238495 1626 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+Radio	Packets out	: 0 sent, 0 resent, 0 failed
+Radio	Multicast out	: 3 sent
+Radio	Packets in	: 0 bad CRC, 0 bad NetID, 26 accepted (anycast)
+MPU	Rate was 90.60 samples per sec
+From 1 to 0 type 0 Hj9G 1565238496 1627 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238497 1628 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238498 1629 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238499 1630 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238500 1631 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+Radio	Send PACKET_TIME... ok.
+From 1 to 0 type 0 Hj9G 1565238502 1634 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238502 1633 1632;957;231;0;0;2;1565238500; (data length 30)
+From 1 to 0 type 0 Hj9G 1565238503 1635 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238504 1636 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238505 1637 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+MPU	Rate was 90.20 samples per sec
+From 1 to 0 type 0 Hj9G 1565238506 1638 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238507 1639 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238508 1640 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238509 1641 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238510 1642 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+Radio	Send PACKET_TIME... ok.
+From 1 to 0 type 0 Hj9G 1565238512 1645 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238512 1644 1643;957;231;0;0;2;1565238510; (data length 30)
+From 1 to 0 type 0 Hj9G 1565238513 1646 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238514 1647 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238515 1648 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+MPU	Rate was 90.50 samples per sec
+From 1 to 0 type 0 Hj9G 1565238516 1649 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238517 1650 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238518 1651 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238519 1652 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238520 1653 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+Radio	Send PACKET_TIME... ok.
+From 1 to 0 type 0 Hj9G 1565238522 1656 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238522 1655 1654;957;231;0;0;2;1565238520; (data length 30)
+From 1 to 0 type 0 Hj9G 1565238523 1657 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238524 1658 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238525 1659 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+Radio	Packets out	: 0 sent, 0 resent, 0 failed
+Radio	Multicast out	: 6 sent
+Radio	Packets in	: 0 bad CRC, 0 bad NetID, 56 accepted (anycast)
+MPU	Rate was 90.20 samples per sec
+WDog	Alive (since 0.02 hours)
+From 1 to 0 type 0 Hj9G 1565238526 1660 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)
+From 1 to 0 type 0 Hj9G 1565238527 1661 Dummy packet from 01 - 012345678901234567890123456789 (data length 53)

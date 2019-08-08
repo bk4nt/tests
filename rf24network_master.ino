@@ -113,7 +113,6 @@ void loop(void){
     uint32_t time = millis();
     uint16_t to = 64;
     RF24NetworkHeader header(to, 'T');
-    network.write(header,&time,sizeof(time));
     bool ok = network.multicast(header,&payload,sizeof(payload), 01);
     if (ok)
       Serial.println("ok.");

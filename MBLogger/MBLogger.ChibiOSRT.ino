@@ -11,16 +11,19 @@
 
     With a Teensy 3.2, outputs are :
 
-Radio  : 2676 out, 0 failed, 50 packets/second
-MPU : 100 samples/sec, 99 min, 101 max, 0 FIFO resets, last roll is 12.84
-Radio : 2727 out, 0 failed, 51 packets/second
-MPU : 100 samples/sec, 99 min, 101 max, 0 FIFO resets, last roll is -21.54
-Radio : 2778 out, 0 failed, 51 packets/second
-MPU : 100 samples/sec, 99 min, 101 max, 0 FIFO resets, last roll is 0.45
-Radio : 2828 out, 0 failed, 50 packets/second
-MPU : 100 samples/sec, 99 min, 101 max, 0 FIFO resets, last roll is 0.36
-Radio : 2879 out, 0 failed, 51 packets/second
-MPU : 100 samples/sec, 99 min, 101 max, 0 FIFO resets, last roll is 0.33
+MPU  : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.12, 0.00 min, 0.14 max
+Radio : 3850 out, 0 failed, 50 packets/second
+MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.11, 0.00 min, 0.14 max
+Radio : 3900 out, 0 failed, 50 packets/second
+MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.13, 0.00 min, 0.14 max
+Radio : 3950 out, 0 failed, 50 packets/second
+MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.11, 0.00 min, 0.14 max
+Radio : 4000 out, 0 failed, 50 packets/second
+Stack : 100 724 192 724 52724 280
+MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.11, 0.00 min, 0.14 max
+Radio : 4050 out, 0 failed, 50 packets/second
+MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.11, 0.00 min, 0.14 max
+Radio : 4100 out, 0 failed, 50 packets/second
 
 */
 
@@ -41,6 +44,8 @@ volatile uint16_t packetSize;    // expected DMP packet size (default is 42 byte
 volatile uint16_t mpuFIFOReset;
 volatile uint32_t mpuData = 0;
 volatile float    roll;
+volatile float    roll_min;
+volatile float    roll_max;
 
 #include <RF24Network.h>
 #include <RF24.h>
@@ -121,6 +126,7 @@ static THD_FUNCTION(Thread2, arg) {
       } else if (mpuIntStatus & _BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {      
         uint8_t fifoBuffer[64];
         mpu.getFIFOBytes(fifoBuffer, packetSize);
+        mpu.resetFIFO();
       
         Quaternion q;           // [w, x, y, z]         quaternion container
         VectorFloat gravity;    // [x, y, z]            gravity vector
@@ -131,6 +137,10 @@ static THD_FUNCTION(Thread2, arg) {
         mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
         roll = ypr[2];
+        if (ypr[2] > 0)
+          roll_max = max(roll_max, ypr[2]);
+        if (ypr[2] < 0)
+          roll_min = max(roll_min, abs(ypr[2]));
         mpuData++;
       }
     }
@@ -146,7 +156,9 @@ static THD_FUNCTION(Thread3, arg) {
   unsigned long data_max = 0;
   unsigned long wait = 0;
   while (true) {
-    if (wait++ > 3) { // Skip initial data
+    if (wait < 3) { // Skip also initial data
+      wait++;
+    } else {
       data_min = min(data_min, mpuData);
       data_max = max(data_max, mpuData);
       _PP("MPU\t: ");
@@ -158,7 +170,12 @@ static THD_FUNCTION(Thread3, arg) {
       _PP(" max, ");
       _PP(mpuFIFOReset);
       _PP(" FIFO resets, last roll is ");
-      _PL(roll * 180/M_PI);
+      _PP(roll * 180/M_PI);
+      _PP(", ");
+      _PP(roll_min * 180/M_PI);
+      _PP(" min, ");
+      _PP(roll_max * 180/M_PI);
+      _PL(" max");
       _PP("Radio\t: ");
       _PP(packets_out_multicast);
       _PP(" out, ");
@@ -166,9 +183,7 @@ static THD_FUNCTION(Thread3, arg) {
       _PP(" failed, ");
       _PP(radioPackets);
       _PL(" packets/second");
-    } else
-      _PL(".");
-    
+    }
     radioPackets = 0;
     mpuData = 0;
     
@@ -251,6 +266,12 @@ void setup() {
   mpu.setYGyroOffset(-28);
   mpu.setZGyroOffset(-6);
   mpu.setZAccelOffset(1471);
+  _PP("MPU\tWaiting..");
+  for (int i = 0; i < 20; i++) { // Initial values are out of range
+    delay(1000);
+    _PP(".");
+  }
+  _PL("");
   _PL("MPU\tOk");
    
   _PL("Radio\tConfiguring...");

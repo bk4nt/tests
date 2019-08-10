@@ -151,7 +151,7 @@ static THD_FUNCTION(Thread2, arg) {
 static THD_WORKING_AREA(waThread3, 64);
 static THD_FUNCTION(Thread3, arg) {
   (void)arg;
-  unsigned long data_min = 0;
+  unsigned long data_min = 100;
   unsigned long data_max = 0;
   unsigned long wait = 0;
   systime_t time = chVTGetSystemTimeX();
@@ -161,7 +161,7 @@ static THD_FUNCTION(Thread3, arg) {
     if (wait < 5) { // Skip initial data
       wait++;
     } else {
-      data_min = max(data_min, mpuData);
+      data_min = min(data_min, mpuData);
       data_max = max(data_max, mpuData);
       _PP("MPU\t: ");
       _PP(mpuData);

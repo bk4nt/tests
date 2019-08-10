@@ -9,26 +9,22 @@
 /*  Using https://github.com/greiman/ChRt
     ChibiOS/RT for Arduino AVR, SAMD, Due, Teensy 3.x. 
 
-    With a Teensy 3.2, outputs are :
-
-MPU  : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.12, 0.00 min, 0.14 max
-Radio : 3850 out, 0 failed, 50 packets/second
-MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.11, 0.00 min, 0.14 max
-Radio : 3900 out, 0 failed, 50 packets/second
-MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.13, 0.00 min, 0.14 max
-Radio : 3950 out, 0 failed, 50 packets/second
-MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.11, 0.00 min, 0.14 max
-Radio : 4000 out, 0 failed, 50 packets/second
-Stack : 100 724 192 724 52724 280
-MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.11, 0.00 min, 0.14 max
-Radio : 4050 out, 0 failed, 50 packets/second
-MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.11, 0.00 min, 0.14 max
-Radio : 4100 out, 0 failed, 50 packets/second
+    With a Teensy 3.2, max short RF24network packet rate is approx 50 packets/second
+    
+    Some seconds have 99 or 101 samples, this seems caused by tasks scheduling. Sample time most
+    the time takes 1655us, but sometime processing the MPU sample takes twice that time...
 
     The 1 FIFO reset from startup.
-    
-    Some seconds have 99 or 101 samples, seems caused by scheduling. Sample time most
-    the time takes 1655us, but sometime processing the MPU sample takes twice that time...
+
+MPU	: 100 samples/sec, 99 min, 101 max, last roll is 0.06, 1654us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
+Radio	: 1690 out, 0 failed, 10 packets/second
+Stack	: 100 748 256 748 52648 300
+MPU	: 101 samples/sec, 99 min, 101 max, last roll is 0.05, 3649us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
+Radio	: 1701 out, 0 failed, 10 packets/second
+MPU	: 99 samples/sec, 99 min, 101 max, last roll is 0.06, 1656us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
+Radio	: 1710 out, 0 failed, 10 packets/second
+MPU	: 100 samples/sec, 99 min, 101 max, last roll is 0.06, 1658us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
+
 */
 
 #include "ChRt.h"

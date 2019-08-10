@@ -37,16 +37,20 @@ SEMAPHORE_DECL(serialFree, 0);
 #include <Wire.h>
 
 #undef  PIN_SPI_SCK // Teensy 3.2 LED is on PIN 13
-#define PIN_SPI_SCK         14 // We will use 14
+#define PIN_SPI_SCK   14 // We will use 14
+#define INTERRUPT_PIN 2
 
 #include "MPU6050_6Axis_MotionApps20.h"
 MPU6050 mpu;
-volatile uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
+volatile uint8_t  packetSize;    // expected DMP packet size (default is 42 bytes)
+volatile uint8_t  mpuData = 0;
 volatile uint16_t mpuFIFOReset;
-volatile uint32_t mpuData = 0;
-volatile float    roll;
-volatile float    roll_min;
-volatile float    roll_max;
+SEMAPHORE_DECL(mpuDataFree, 0);
+
+volatile float          roll;
+volatile float          roll_min;
+volatile float          roll_max;
+volatile unsigned long  roll_oops;
 
 #include <RF24Network.h>
 #include <RF24.h>
@@ -114,56 +118,94 @@ static THD_FUNCTION(Thread1, arg) {
   }
 }
 //------------------------------------------------------------------------------
+static thread_reference_t trpMPU = NULL;
+
+CH_IRQ_HANDLER(myIRQMPU) {
+  CH_IRQ_PROLOGUE();
+ 
+  /* Wakes up the thread.*/
+  chSysLockFromISR();
+  chThdResumeI(&trpMPU, (msg_t)0x1337);  /* Resuming the thread with message.*/
+  chSysUnlockFromISR();
+ 
+  CH_IRQ_EPILOGUE();
+}
+//------------------------------------------------------------------------------
 static THD_WORKING_AREA(waThread2, 1024);
 static THD_FUNCTION(Thread2, arg) {
   (void)arg;
-  while (true) {
-    uint16_t fifoCount = mpu.getFIFOCount();
-    if (fifoCount >= packetSize) {
-      uint8_t mpuIntStatus = mpu.getIntStatus();
-      if ((mpuIntStatus & _BV(MPU6050_INTERRUPT_FIFO_OFLOW_BIT)) || fifoCount >= 1024) {
-        mpu.resetFIFO();
-        mpuFIFOReset++;
-      } else if (mpuIntStatus & _BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {      
-        uint8_t fifoBuffer[64];
-        mpu.getFIFOBytes(fifoBuffer, packetSize);
+while (true) {
+    //msg_t msg;
+ 
+    /* Waiting for the IRQ to happen.*/
+    chSysLock();
+    //msg = chThdSuspendS(&trpMPU);
+    chThdSuspendS(&trpMPU);
+    chSysUnlock();
       
-        Quaternion q;           // [w, x, y, z]         quaternion container
-        VectorFloat gravity;    // [x, y, z]            gravity vector
-        float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container
+  uint16_t fifoCount;
+  while ((fifoCount = mpu.getFIFOCount()) < packetSize);
+  
+  uint8_t mpuIntStatus = mpu.getIntStatus();
+  if ((mpuIntStatus & _BV(MPU6050_INTERRUPT_FIFO_OFLOW_BIT)) || fifoCount > packetSize) { // was >= 1024) {
+    mpu.resetFIFO();
+    mpuFIFOReset++;
+  } else if (mpuIntStatus & _BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
+    uint8_t fifoBuffer[64];
 
-        mpu.dmpGetQuaternion(&q, fifoBuffer);
-        mpu.dmpGetGravity(&gravity, &q);
-        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+    mpu.getFIFOBytes(fifoBuffer, packetSize);
 
-        roll = ypr[2];
-        if (ypr[2] > 0)
-          roll_max = max(roll_max, ypr[2]);
-        if (ypr[2] < 0)
-          roll_min = max(roll_min, abs(ypr[2]));
-        mpuData++;
-      }
+    Quaternion q;           // [w, x, y, z]         quaternion container
+    VectorFloat gravity;    // [x, y, z]            gravity vector
+    float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container
+
+    mpu.dmpGetQuaternion(&q, fifoBuffer);
+    mpu.dmpGetGravity(&gravity, &q);
+    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+
+    static float previous_roll;
+
+    if (abs(roll - previous_roll) > 2 * M_PI/180) {
+      roll = previous_roll;
+      roll_oops++;
+      mpu.resetFIFO();
+      mpuFIFOReset++;
     }
-    chThdYield();
+
+    roll = ypr[2];
+    if (ypr[2] > 0)
+      roll_max = max(roll_max, ypr[2]);
+    if (ypr[2] < 0)
+      roll_min = max(roll_min, abs(ypr[2]));
+    
+    chSemWait(&mpuDataFree);
+    mpuData++;
+    chSemSignal(&mpuDataFree);
   }
 }
-
+}
 //------------------------------------------------------------------------------
 static THD_WORKING_AREA(waThread3, 128);
 static THD_FUNCTION(Thread3, arg) {
   (void)arg;
-  unsigned long data_min = 100;
-  unsigned long data_max = 0;
-  unsigned long wait = 0;
+  uint8_t data_min = 100;
+  uint8_t data_max = 0;
+  uint8_t wait = 0;
   systime_t time = chVTGetSystemTimeX();
   while (true) {
-    packet_t packet;
     time += MS2ST(1000);
     if (wait < 5) { // Skip initial data
       wait++;
+      roll_min = 0;
+      roll_max = 0;
+      roll_oops = 0;
     } else {
-      data_min = min(data_min, mpuData);
-      data_max = max(data_max, mpuData);
+      uint8_t data_current;
+      chSemWait(&mpuDataFree);
+      data_current = mpuData;
+      chSemSignal(&mpuDataFree);
+      data_min = min(data_min, data_current);
+      data_max = max(data_max, data_current);
       
       chSemWait(&serialFree);
       _PP("MPU\t: ");
@@ -172,16 +214,18 @@ static THD_FUNCTION(Thread3, arg) {
       _PP(data_min);
       _PP(" min, ");
       _PP(data_max);
-      _PP(" max, ");
-      _PP(mpuFIFOReset);
-      _PP(" FIFO resets, last roll is ");
+      _PP(" max, last roll is ");
       _PP(roll * 180/M_PI);
       _PP(", ");
       _PP(roll_min * 180/M_PI);
       _PP(" min, ");
       _PP(roll_max * 180/M_PI);
-      _PL(" max");
-      _PP("Radio\t: ");
+      _PP(" max, ");
+      _PP(roll_oops);
+      _PP(" oopsed, ");
+      _PP(mpuFIFOReset);
+      _PL(" FIFO resets");
+     _PP("Radio\t: ");
       _PP(packets_out_multicast);
       _PP(" out, ");
       _PP(packets_out_failed);
@@ -203,18 +247,18 @@ static THD_FUNCTION(Thread4, arg) {
   systime_t time = chVTGetSystemTimeX();
   while (true) {
     packet_t packet;
-    //time += MS2ST(250);
+    time += MS2ST(100);
     packetBuildMulticast(&packet, (char *)"Hello!", 0);
     packetSendMulticast(&packet);
     radioPackets++;
-    chThdSleepMilliseconds(1);
-    //chThdSleepUntil(time);
+    //chThdSleepMilliseconds(1);
+    chThdSleepUntil(time);
   }
 }
 //------------------------------------------------------------------------------
 // Continue setup() after chBegin().
 void chSetup() {
-  if (CH_CFG_TIME_QUANTUM != 1) {
+  if (CH_CFG_TIME_QUANTUM != 3) {
     _PL("You must set CH_CFG_TIME_QUANTUM to 1 in");
 #if defined(__arm__)
     _PP("src/arm/chconfig_arm.h");
@@ -225,6 +269,7 @@ void chSetup() {
   }
 
   chSemSignal(&serialFree);
+  chSemSignal(&mpuDataFree);
 
   // LED
   chThdCreateStatic(waThread1, sizeof(waThread1),
@@ -241,6 +286,9 @@ void chSetup() {
   // Radio
   chThdCreateStatic(waThread4, sizeof(waThread4),
     NORMALPRIO, Thread4, NULL);
+
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), myIRQMPU, RISING);
+  mpu.getIntStatus();
 }
 //------------------------------------------------------------------------------
 void setup() {
@@ -288,8 +336,8 @@ void setup() {
     _PL("Radio\tDead");
     while (true) {};
   } else {
-    //radio.setDataRate( RF24_250KBPS ); // Some 34 packets/s
-    radio.setDataRate( RF24_1MBPS ); // Some 50 packets/s...
+    radio.setDataRate( RF24_250KBPS ); // Some 34 packets/s, slower to process...
+    //radio.setDataRate( RF24_1MBPS ); // Some 50 packets/s...
     radio.setPALevel(RF24_PA_MIN);
     network.begin(/* channel */90, this_node);
   }

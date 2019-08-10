@@ -259,7 +259,7 @@ static THD_FUNCTION(Thread4, arg) {
 // Continue setup() after chBegin().
 void chSetup() {
   if (CH_CFG_TIME_QUANTUM != 3) {
-    _PL("You must set CH_CFG_TIME_QUANTUM to 1 in");
+    _PL("You must set CH_CFG_TIME_QUANTUM to 3 in");
 #if defined(__arm__)
     _PP("src/arm/chconfig_arm.h");
 #elif defined(__AVR__)

@@ -151,14 +151,17 @@ static THD_FUNCTION(Thread2, arg) {
 static THD_WORKING_AREA(waThread3, 64);
 static THD_FUNCTION(Thread3, arg) {
   (void)arg;
-  unsigned long data_min = 100;
+  unsigned long data_min = 0;
   unsigned long data_max = 0;
   unsigned long wait = 0;
+  systime_t time = chVTGetSystemTimeX();
   while (true) {
-    if (wait < 3) { // Skip also initial data
+    packet_t packet;
+    time += MS2ST(1000);
+    if (wait < 5) { // Skip initial data
       wait++;
     } else {
-      data_min = min(data_min, mpuData);
+      data_min = max(data_min, mpuData);
       data_max = max(data_max, mpuData);
       _PP("MPU\t: ");
       _PP(mpuData);
@@ -185,9 +188,7 @@ static THD_FUNCTION(Thread3, arg) {
     }
     radioPackets = 0;
     mpuData = 0;
-    
-    // Allow other threads to run for 1 sec.
-    chThdSleepMilliseconds(1000);
+    chThdSleepUntil(time);
   }
 }
 

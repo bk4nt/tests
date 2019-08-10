@@ -16,14 +16,14 @@
 
     The 1 FIFO reset from startup.
 
-MPU	: 100 samples/sec, 99 min, 101 max, last roll is 0.06, 1654us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
-Radio	: 1690 out, 0 failed, 10 packets/second
-Stack	: 100 748 256 748 52648 300
-MPU	: 101 samples/sec, 99 min, 101 max, last roll is 0.05, 3649us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
-Radio	: 1701 out, 0 failed, 10 packets/second
-MPU	: 99 samples/sec, 99 min, 101 max, last roll is 0.06, 1656us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
-Radio	: 1710 out, 0 failed, 10 packets/second
-MPU	: 100 samples/sec, 99 min, 101 max, last roll is 0.06, 1658us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
+MPU  : 100 samples/sec, 99 min, 101 max, last roll is 0.06, 1654us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
+Radio : 1690 out, 0 failed, 10 packets/second
+Stack : 100 748 256 748 52648 300
+MPU : 101 samples/sec, 99 min, 101 max, last roll is 0.05, 3649us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
+Radio : 1701 out, 0 failed, 10 packets/second
+MPU : 99 samples/sec, 99 min, 101 max, last roll is 0.06, 1656us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
+Radio : 1710 out, 0 failed, 10 packets/second
+MPU : 100 samples/sec, 99 min, 101 max, last roll is 0.06, 1658us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
 
 */
 
@@ -135,7 +135,7 @@ volatile unsigned long stamp;
 static THD_WORKING_AREA(waThread2, 1024);
 static THD_FUNCTION(Thread2, arg) {
   (void)arg;
-while (true) {
+  while (true) {
     //msg_t msg;
  
     /* Waiting for the IRQ to happen.*/
@@ -144,47 +144,47 @@ while (true) {
     chThdSuspendS(&trpMPU);
     chSysUnlock();
     stamp = micros();  
-  uint16_t fifoCount;
-  while ((fifoCount = mpu.getFIFOCount()) < packetSize);
+    uint16_t fifoCount;
+    while ((fifoCount = mpu.getFIFOCount()) < packetSize);
   
-  uint8_t mpuIntStatus = mpu.getIntStatus();
-  if ((mpuIntStatus & _BV(MPU6050_INTERRUPT_FIFO_OFLOW_BIT)) || fifoCount > packetSize) { // was >= 1024) {
-    mpu.resetFIFO();
-    mpuFIFOReset++;
-  } else if (mpuIntStatus & _BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
-    uint8_t fifoBuffer[64];
-
-    mpu.getFIFOBytes(fifoBuffer, packetSize);
-
-    Quaternion q;           // [w, x, y, z]         quaternion container
-    VectorFloat gravity;    // [x, y, z]            gravity vector
-    float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container
-
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-
-    static float previous_roll;
-
-    if (abs(roll - previous_roll) > 2 * M_PI/180) {
-      roll = previous_roll;
-      roll_oops++;
+    uint8_t mpuIntStatus = mpu.getIntStatus();
+    if ((mpuIntStatus & _BV(MPU6050_INTERRUPT_FIFO_OFLOW_BIT)) || fifoCount > packetSize) { // was >= 1024) {
       mpu.resetFIFO();
       mpuFIFOReset++;
-    }
+    } else if (mpuIntStatus & _BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
+      uint8_t fifoBuffer[64];
 
-    roll = ypr[2];
-    if (ypr[2] > 0)
-      roll_max = max(roll_max, ypr[2]);
-    if (ypr[2] < 0)
-      roll_min = max(roll_min, abs(ypr[2]));
+      mpu.getFIFOBytes(fifoBuffer, packetSize);
+
+      Quaternion q;           // [w, x, y, z]         quaternion container
+      VectorFloat gravity;    // [x, y, z]            gravity vector
+      float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container
+
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+
+      static float previous_roll;
+
+      if (abs(roll - previous_roll) > 2 * M_PI/180) {
+        roll = previous_roll;
+        roll_oops++;
+        mpu.resetFIFO();
+        mpuFIFOReset++;
+      }
+
+      roll = ypr[2];
+      if (ypr[2] > 0)
+        roll_max = max(roll_max, ypr[2]);
+      if (ypr[2] < 0)
+        roll_min = max(roll_min, abs(ypr[2]));
     
-    chSemWait(&mpuDataFree);
-    mpuData++;
-    chSemSignal(&mpuDataFree);
+      chSemWait(&mpuDataFree);
+      mpuData++;
+      chSemSignal(&mpuDataFree);
+    }
+    stamp = micros() - stamp;
   }
-  stamp = micros() - stamp;
-}
 }
 //------------------------------------------------------------------------------
 static THD_WORKING_AREA(waThread3, 128);

@@ -1,5 +1,4 @@
 
-
 /*
  Copyright (C) 2019 Bruno KANT <bkant@cloppy.net>
  This program is free software; you can redistribute it and/or
@@ -163,9 +162,10 @@ static THD_FUNCTION(Thread3, arg) {
     if (wait < 5) { // Skip initial data
       wait++;
     } else {
-      chSemWait(&serialFree);
       data_min = min(data_min, mpuData);
       data_max = max(data_max, mpuData);
+      
+      chSemWait(&serialFree);
       _PP("MPU\t: ");
       _PP(mpuData);
       _PP(" samples/sec, ");
@@ -310,7 +310,7 @@ void loop() {
     // Print unused stack space in bytes.
     _PP(F("Stack\t: "));
     _PP(chUnusedThreadStack(waThread1, sizeof(waThread1)));
-     _PP(" ");
+    _PP(" ");
     _PP(chUnusedThreadStack(waThread2, sizeof(waThread2)));
     _PP(" ");
     _PP(chUnusedThreadStack(waThread2, sizeof(waThread3)));

@@ -9,21 +9,43 @@
 /*  Using https://github.com/greiman/ChRt
     ChibiOS/RT for Arduino AVR, SAMD, Due, Teensy 3.x. 
 
-    With a Teensy 3.2, max short RF24network packet rate is approx 50 packets/second
-    
-    Some seconds have 99 or 101 samples, this seems caused by tasks scheduling. Sample time most
-    the time takes 1655us, but sometime processing the MPU sample takes twice that time...
+    With a Teensy 3.2, max short RF24network packet rate is approx 27 packets/second
 
-    The 1 FIFO reset from startup.
+    Output example with 10pps, MPU at 100 samples per second:
 
-MPU  : 100 samples/sec, 99 min, 101 max, last roll is 0.06, 1654us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
-Radio : 1690 out, 0 failed, 10 packets/second
-Stack : 100 748 256 748 52648 300
-MPU : 101 samples/sec, 99 min, 101 max, last roll is 0.05, 3649us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
-Radio : 1701 out, 0 failed, 10 packets/second
-MPU : 99 samples/sec, 99 min, 101 max, last roll is 0.06, 1656us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
-Radio : 1710 out, 0 failed, 10 packets/second
-MPU : 100 samples/sec, 99 min, 101 max, last roll is 0.06, 1658us, 0.00 min, 0.09 max, 0 oopsed, 1 FIFO resets
+MPU  Configuring...
+MPU Waiting......................
+MPU Ok
+Radio Configuring...
+Radio Ok
+MPU 100/sec, 100 min, 100 max, 1661us
+MPU 0.04, 0.00 min, 0.05 max
+Radio 52 out, 0 failed, 11pps
+Stack 100 760 1020 164 52648 312
+...
+MPU  100/sec, 100 min, 100 max, 1661us
+MPU 0.06, 0.00 min, 0.08 max
+Radio 3052 out, 0 failed, 10pps
+Stack 100 752 948 164 52648 300
+MPU 100/sec, 100 min, 100 max, 1657us
+MPU 0.06, 0.00 min, 0.08 max
+Radio 3062 out, 0 failed, 10pps
+Stack 100 752 948 164 52648 300
+
+    With some 27-30pps, MPU at 100 samples per second:
+
+MPU  100/sec, 100 min, 100 max, 1678us
+MPU 0.05, 0.00 min, 0.08 max
+Radio 8802 out, 0 failed, 27pps
+Stack 100 752 956 128 52648 248
+MPU 100/sec, 100 min, 100 max, 1675us
+MPU 0.06, 0.00 min, 0.08 max
+Radio 8836 out, 0 failed, 31pps
+Stack 100 752 956 128 52648 248
+MPU 100/sec, 100 min, 100 max, 1677us
+MPU 0.06, 0.00 min, 0.08 max
+Radio 8869 out, 0 failed, 29pps
+Stack 100 752 956 128 52648 248
 
 */
 
@@ -43,8 +65,9 @@ SEMAPHORE_DECL(serialFree, 0);
 #include "MPU6050_6Axis_MotionApps20.h"
 MPU6050 mpu;
 volatile uint8_t  packetSize;    // expected DMP packet size (default is 42 bytes)
-volatile uint8_t  mpuData = 0;
+volatile uint8_t  mpuDataRate = 0;
 volatile uint16_t mpuFIFOReset;
+volatile uint16_t mpuExecute;
 SEMAPHORE_DECL(mpuDataFree, 0);
 
 volatile float          roll;
@@ -131,7 +154,6 @@ CH_IRQ_HANDLER(myIRQMPU) {
   CH_IRQ_EPILOGUE();
 }
 //------------------------------------------------------------------------------
-volatile unsigned long stamp;
 static THD_WORKING_AREA(waThread2, 1024);
 static THD_FUNCTION(Thread2, arg) {
   (void)arg;
@@ -143,7 +165,10 @@ static THD_FUNCTION(Thread2, arg) {
     //msg = chThdSuspendS(&trpMPU);
     chThdSuspendS(&trpMPU);
     chSysUnlock();
+    
+    unsigned long stamp;
     stamp = micros();  
+
     uint16_t fifoCount;
     while ((fifoCount = mpu.getFIFOCount()) < packetSize);
   
@@ -179,86 +204,146 @@ static THD_FUNCTION(Thread2, arg) {
       if (ypr[2] < 0)
         roll_min = max(roll_min, abs(ypr[2]));
     
-      chSemWait(&mpuDataFree);
-      mpuData++;
-      chSemSignal(&mpuDataFree);
+      static uint8_t mpuDMPInterrupts = 0;
+      static unsigned long last_millis = millis();
+      unsigned long now_millis = millis();
+      if (now_millis - last_millis >= 1000) {
+        chSemWait(&mpuDataFree);
+        mpuDataRate = mpuDMPInterrupts;
+        chSemSignal(&mpuDataFree);
+        mpuDMPInterrupts = 0;
+        last_millis = now_millis;
+      }
+      ++mpuDMPInterrupts;
     }
-    stamp = micros() - stamp;
+    chSemWait(&mpuDataFree);
+    mpuExecute = max(micros() - stamp, mpuExecute);
+    chSemSignal(&mpuDataFree);
   }
 }
 //------------------------------------------------------------------------------
-static THD_WORKING_AREA(waThread3, 128);
+static THD_WORKING_AREA(waThread3, 2048);
 static THD_FUNCTION(Thread3, arg) {
   (void)arg;
-  uint8_t data_min = 100;
-  uint8_t data_max = 0;
+  systime_t time = chVTGetSystemTimeX();
+  while (true) {
+    packet_t packet;
+    
+/*  Lines for 10pps:
+    time += MS2ST(100);
+    packetBuildMulticast(&packet, (char *)"Hello!", 0);
+    chThdYield();
+    packetSendMulticast(&packet);
+    radioPackets++;
+    chThdSleepUntil(time); */
+
+    // Lines for some 27-30 pps:
+    packetBuildMulticast(&packet, (char *)"Hello!", 0);
+    chThdYield();
+    packetSendMulticast(&packet);
+    radioPackets++;
+    chThdSleepMilliseconds(5);
+  }
+}
+//------------------------------------------------------------------------------
+static THD_WORKING_AREA(waThread4, 256);
+static THD_FUNCTION(Thread4, arg) {
+  (void)arg;
+  uint8_t data_rate_min = 100;
+  uint8_t data_rate_max = 0;
   uint8_t wait = 0;
   systime_t time = chVTGetSystemTimeX();
   while (true) {
     time += MS2ST(1000);
     if (wait < 5) { // Skip initial data
       wait++;
-      roll_min = 0;
+      roll_min = 0; // TODO missing semaphores...
       roll_max = 0;
       roll_oops = 0;
     } else {
-      uint8_t data_current;
+      uint8_t data_rate_current;
+      uint32_t data_execute_current;
       chSemWait(&mpuDataFree);
-      data_current = mpuData;
+      data_rate_current = mpuDataRate;
+      data_execute_current = mpuExecute;
+      mpuExecute = 0;
       chSemSignal(&mpuDataFree);
-      data_min = min(data_min, data_current);
-      data_max = max(data_max, data_current);
+      data_rate_min = min(data_rate_min, data_rate_current);
+      data_rate_max = max(data_rate_max, data_rate_current);
       
       chSemWait(&serialFree);
-      _PP("MPU\t: ");
-      _PP(mpuData);
-      _PP(" samples/sec, ");
-      _PP(data_min);
+      _PP("MPU\t");
+      _PP(data_rate_current);
+      _PP("/sec, ");
+      _PP(data_rate_min);
       _PP(" min, ");
-      _PP(data_max);
-      _PP(" max, last roll is ");
+      _PP(data_rate_max);
+      _PP(" max, ");
+      _PP(data_execute_current);
+      _PP("us");
+      if (data_rate_current == 100) {
+        _PL("");
+      } else {
+        _PL(", oops...");
+      }
+      chSemSignal(&serialFree);
+      chThdSleepMilliseconds(50);
+      chSemWait(&serialFree);
+      _PP("MPU\t");
       _PP(roll * 180/M_PI);
       _PP(", ");
-      _PP(stamp);
-      _PP("us, ");
       _PP(roll_min * 180/M_PI);
       _PP(" min, ");
       _PP(roll_max * 180/M_PI);
-      _PP(" max, ");
-      _PP(roll_oops);
-      _PP(" oopsed, ");
-      _PP(mpuFIFOReset);
-      _PL(" FIFO resets");
-     _PP("Radio\t: ");
+      _PP(" max");
+      if (roll_oops) {
+        _PP(", ");
+        _PP(roll_oops);
+        _PP(" oopsed, ");
+        _PP(mpuFIFOReset);
+        _PP(" FIFO resets");
+      }
+      _PL("");
+      chSemSignal(&serialFree);
+      chThdSleepMilliseconds(50);
+      chSemWait(&serialFree);
+      _PP("Radio\t");
       _PP(packets_out_multicast);
       _PP(" out, ");
       _PP(packets_out_failed);
       _PP(" failed, ");
-      _PP(radioPackets);
-      _PL(" packets/second");
+      _PP(radioPackets); // TODO to be probed inside senter loop (see mpuDataRate / mpuDMPInterrupts)
+      _PL("pps");
       chSemSignal(&serialFree);
+#define __DEBUG_STACK
+#ifdef __DEBUG_STACK
+      chThdSleepMilliseconds(50);
+      chSemWait(&serialFree);
+      // Print unused stack space in bytes.
+      _PP(F("Stack\t"));
+      _PP(chUnusedThreadStack(waThread1, sizeof(waThread1)));
+      _PP(" ");
+      _PP(chUnusedThreadStack(waThread2, sizeof(waThread2)));
+      _PP(" ");
+      _PP(chUnusedThreadStack(waThread3, sizeof(waThread3)));
+      _PP(" ");
+      _PP(chUnusedThreadStack(waThread4, sizeof(waThread4)));
+      _PP(" ");
+      _PP(chUnusedMainStack());
+#ifdef __arm__
+      // ARM has separate stack for ISR interrupts. 
+      _PP(" ");
+      _PP(chUnusedHandlerStack());
+#endif  // __arm__
+      _PL();
+      chSemSignal(&serialFree);
+#endif // __DEBUG_STACK
     }
-    radioPackets = 0;
-    mpuData = 0;
+    radioPackets = 0; // TODO missing semaphores... plus to be probed inside sender loop
     chThdSleepUntil(time);
   }
 }
 
-//------------------------------------------------------------------------------
-static THD_WORKING_AREA(waThread4, 2048);
-static THD_FUNCTION(Thread4, arg) {
-  (void)arg;
-  systime_t time = chVTGetSystemTimeX();
-  while (true) {
-    packet_t packet;
-    time += MS2ST(100);
-    packetBuildMulticast(&packet, (char *)"Hello!", 0);
-    packetSendMulticast(&packet);
-    radioPackets++;
-    //chThdSleepMilliseconds(1);
-    chThdSleepUntil(time);
-  }
-}
 //------------------------------------------------------------------------------
 // Continue setup() after chBegin().
 void chSetup() {
@@ -277,19 +362,19 @@ void chSetup() {
 
   // LED
   chThdCreateStatic(waThread1, sizeof(waThread1),
-    NORMALPRIO, Thread1, NULL);
+    NORMALPRIO - 4, Thread1, NULL);
 
   // MPU
   chThdCreateStatic(waThread2, sizeof(waThread2),
-    NORMALPRIO, Thread2, NULL);
-
-  // Summary
-  chThdCreateStatic(waThread3, sizeof(waThread3),
-    NORMALPRIO, Thread3, NULL);
+    NORMALPRIO + 2, Thread2, NULL);
 
   // Radio
+  chThdCreateStatic(waThread3, sizeof(waThread3),
+    NORMALPRIO - 2, Thread3, NULL);
+
+  // Summary
   chThdCreateStatic(waThread4, sizeof(waThread4),
-    NORMALPRIO, Thread4, NULL);
+    NORMALPRIO - 4, Thread4, NULL);
 
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), myIRQMPU, RISING);
   mpu.getIntStatus();
@@ -326,7 +411,7 @@ void setup() {
   mpu.setZGyroOffset(-6);
   mpu.setZAccelOffset(1471);
   _PP("MPU\tWaiting..");
-  for (int i = 0; i < 20; i++) { // Initial values are out of range
+  for (int i = 0; i < 20; i++) { // Initial values are out of range (MPU calibrating?)
     delay(1000);
     _PP(".");
   }
@@ -354,29 +439,7 @@ void setup() {
 }
 //------------------------------------------------------------------------------
 void loop() {
-  systime_t time = chVTGetSystemTimeX();
   while (true) {
-    time += MS2ST(10000);
-  
-    chSemWait(&serialFree);
-    // Print unused stack space in bytes.
-    _PP(F("Stack\t: "));
-    _PP(chUnusedThreadStack(waThread1, sizeof(waThread1)));
-    _PP(" ");
-    _PP(chUnusedThreadStack(waThread2, sizeof(waThread2)));
-    _PP(" ");
-    _PP(chUnusedThreadStack(waThread2, sizeof(waThread3)));
-    _PP(" ");
-    _PP(chUnusedThreadStack(waThread2, sizeof(waThread4)));
-    _PP(" ");
-    _PP(chUnusedMainStack());
-#ifdef __arm__
-    // ARM has separate stack for ISR interrupts. 
-    _PP(" ");
-    _PP(chUnusedHandlerStack());
-#endif  // __arm__
-    _PL();
-    chSemSignal(&serialFree);
-    chThdSleepUntil(time);
+    chThdSleepMilliseconds(60000);
   }
 }

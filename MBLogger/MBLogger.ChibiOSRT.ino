@@ -245,7 +245,7 @@ static THD_FUNCTION(Thread3, arg) {
 }
 
 //------------------------------------------------------------------------------
-static THD_WORKING_AREA(waThread4, 1024);
+static THD_WORKING_AREA(waThread4, 2048);
 static THD_FUNCTION(Thread4, arg) {
   (void)arg;
   systime_t time = chVTGetSystemTimeX();

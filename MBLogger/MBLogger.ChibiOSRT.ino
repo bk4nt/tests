@@ -9,7 +9,7 @@
 /*  Using https://github.com/greiman/ChRt
     ChibiOS/RT for Arduino AVR, SAMD, Due, Teensy 3.x. 
 
-    With a Teensy 3.2, outputs are (1 FIFO reset from startup) :
+    With a Teensy 3.2, outputs are :
 
 MPU  : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.12, 0.00 min, 0.14 max
 Radio : 3850 out, 0 failed, 50 packets/second
@@ -25,6 +25,10 @@ Radio : 4050 out, 0 failed, 50 packets/second
 MPU : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.11, 0.00 min, 0.14 max
 Radio : 4100 out, 0 failed, 50 packets/second
 
+    The 1 FIFO reset from startup.
+    
+    Some seconds have 99 or 101 samples, seems caused by scheduling. Sample time most
+    the time takes 1655us, but sometime processing the MPU sample takes twice that time...
 */
 
 #include "ChRt.h"
@@ -131,6 +135,7 @@ CH_IRQ_HANDLER(myIRQMPU) {
   CH_IRQ_EPILOGUE();
 }
 //------------------------------------------------------------------------------
+volatile unsigned long stamp;
 static THD_WORKING_AREA(waThread2, 1024);
 static THD_FUNCTION(Thread2, arg) {
   (void)arg;
@@ -142,7 +147,7 @@ while (true) {
     //msg = chThdSuspendS(&trpMPU);
     chThdSuspendS(&trpMPU);
     chSysUnlock();
-      
+    stamp = micros();  
   uint16_t fifoCount;
   while ((fifoCount = mpu.getFIFOCount()) < packetSize);
   
@@ -182,6 +187,7 @@ while (true) {
     mpuData++;
     chSemSignal(&mpuDataFree);
   }
+  stamp = micros() - stamp;
 }
 }
 //------------------------------------------------------------------------------
@@ -217,6 +223,8 @@ static THD_FUNCTION(Thread3, arg) {
       _PP(" max, last roll is ");
       _PP(roll * 180/M_PI);
       _PP(", ");
+      _PP(stamp);
+      _PP("us, ");
       _PP(roll_min * 180/M_PI);
       _PP(" min, ");
       _PP(roll_max * 180/M_PI);
@@ -258,8 +266,8 @@ static THD_FUNCTION(Thread4, arg) {
 //------------------------------------------------------------------------------
 // Continue setup() after chBegin().
 void chSetup() {
-  if (CH_CFG_TIME_QUANTUM != 3) {
-    _PL("You must set CH_CFG_TIME_QUANTUM to 3 in");
+  if (CH_CFG_TIME_QUANTUM != 2) {
+    _PL("You must set CH_CFG_TIME_QUANTUM to 2 in");
 #if defined(__arm__)
     _PP("src/arm/chconfig_arm.h");
 #elif defined(__AVR__)

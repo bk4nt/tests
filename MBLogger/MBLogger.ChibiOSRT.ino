@@ -9,7 +9,7 @@
 /*  Using https://github.com/greiman/ChRt
     ChibiOS/RT for Arduino AVR, SAMD, Due, Teensy 3.x. 
 
-    With a Teensy 3.2, outputs are :
+    With a Teensy 3.2, outputs are (1 FIFO reset from startup):
 
 MPU  : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.12, 0.00 min, 0.14 max
 Radio : 3850 out, 0 failed, 50 packets/second

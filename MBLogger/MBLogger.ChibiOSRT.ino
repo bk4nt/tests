@@ -126,7 +126,6 @@ static THD_FUNCTION(Thread2, arg) {
       } else if (mpuIntStatus & _BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {      
         uint8_t fifoBuffer[64];
         mpu.getFIFOBytes(fifoBuffer, packetSize);
-        mpu.resetFIFO(); // Or sometime, we get only 99 samples per second...
       
         Quaternion q;           // [w, x, y, z]         quaternion container
         VectorFloat gravity;    // [x, y, z]            gravity vector

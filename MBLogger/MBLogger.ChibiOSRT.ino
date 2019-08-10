@@ -11,7 +11,7 @@
 
     With a Teensy 3.2, max short RF24network packet rate is approx 27 packets/second
 
-    Output example with 10pps, MPU at 100 samples per second:
+    Output example with RF24 At 10pps, MPU6050 at 100 samples per second:
 
 MPU  Configuring...
 MPU Waiting......................
@@ -32,7 +32,7 @@ MPU 0.06, 0.00 min, 0.08 max
 Radio 3062 out, 0 failed, 10pps
 Stack 100 752 948 164 52648 300
 
-    With some 27-30pps, MPU at 100 samples per second:
+    With RF24 at some 27-30pps, close to max, MPU6050 at 100 samples per second:
 
 MPU  100/sec, 100 min, 100 max, 1678us
 MPU 0.05, 0.00 min, 0.08 max

@@ -1,4 +1,5 @@
 
+
 /*
  Copyright (C) 2019 Bruno KANT <bkant@cloppy.net>
  This program is free software; you can redistribute it and/or
@@ -9,7 +10,7 @@
 /*  Using https://github.com/greiman/ChRt
     ChibiOS/RT for Arduino AVR, SAMD, Due, Teensy 3.x. 
 
-    With a Teensy 3.2, outputs are (1 FIFO reset from startup):
+    With a Teensy 3.2, outputs are (1 FIFO reset from startup) :
 
 MPU  : 100 samples/sec, 100 min, 101 max, 1 FIFO resets, last roll is 0.12, 0.00 min, 0.14 max
 Radio : 3850 out, 0 failed, 50 packets/second
@@ -29,6 +30,7 @@ Radio : 4100 out, 0 failed, 50 packets/second
 
 #include "ChRt.h"
 
+SEMAPHORE_DECL(serialFree, 0);
 #define _PP(a) Serial.print(a);
 #define _PL(a) Serial.println(a);
 
@@ -148,7 +150,7 @@ static THD_FUNCTION(Thread2, arg) {
 }
 
 //------------------------------------------------------------------------------
-static THD_WORKING_AREA(waThread3, 64);
+static THD_WORKING_AREA(waThread3, 128);
 static THD_FUNCTION(Thread3, arg) {
   (void)arg;
   unsigned long data_min = 100;
@@ -161,6 +163,7 @@ static THD_FUNCTION(Thread3, arg) {
     if (wait < 5) { // Skip initial data
       wait++;
     } else {
+      chSemWait(&serialFree);
       data_min = min(data_min, mpuData);
       data_max = max(data_max, mpuData);
       _PP("MPU\t: ");
@@ -185,6 +188,7 @@ static THD_FUNCTION(Thread3, arg) {
       _PP(" failed, ");
       _PP(radioPackets);
       _PL(" packets/second");
+      chSemSignal(&serialFree);
     }
     radioPackets = 0;
     mpuData = 0;
@@ -196,14 +200,15 @@ static THD_FUNCTION(Thread3, arg) {
 static THD_WORKING_AREA(waThread4, 1024);
 static THD_FUNCTION(Thread4, arg) {
   (void)arg;
+  systime_t time = chVTGetSystemTimeX();
   while (true) {
     packet_t packet;
+    //time += MS2ST(250);
     packetBuildMulticast(&packet, (char *)"Hello!", 0);
     packetSendMulticast(&packet);
-    chThdSleepMilliseconds(1); // Some 50 packets/second
-    //chThdSleepMilliseconds(20); // 26/second
-    //chThdSleepMilliseconds(100); // 8 to 9 
     radioPackets++;
+    chThdSleepMilliseconds(1);
+    //chThdSleepUntil(time);
   }
 }
 //------------------------------------------------------------------------------
@@ -218,6 +223,8 @@ void chSetup() {
 #endif 
     while (true) {}
   }
+
+  chSemSignal(&serialFree);
 
   // LED
   chThdCreateStatic(waThread1, sizeof(waThread1),
@@ -287,7 +294,7 @@ void setup() {
     network.begin(/* channel */90, this_node);
   }
   _PL("Radio\tOk");
-
+  
   // Start ChibiOS.
   chBegin(chSetup);
   // chBegin() resets stacks and should never return.
@@ -295,23 +302,29 @@ void setup() {
 }
 //------------------------------------------------------------------------------
 void loop() {
-  chThdSleepMilliseconds(10000);
+  systime_t time = chVTGetSystemTimeX();
+  while (true) {
+    time += MS2ST(10000);
   
-  // Print unused stack space in bytes.
-  _PP(F("Stack\t: "));
-  _PP(chUnusedThreadStack(waThread1, sizeof(waThread1)));
-  _PP(" ");
-  _PP(chUnusedThreadStack(waThread2, sizeof(waThread2)));
-  _PP(" ");
-  _PP(chUnusedThreadStack(waThread2, sizeof(waThread3)));
-  _PP(" ");
-  _PP(chUnusedThreadStack(waThread2, sizeof(waThread4)));
-  _PP(" ");
-  _PP(chUnusedMainStack());
+    chSemWait(&serialFree);
+    // Print unused stack space in bytes.
+    _PP(F("Stack\t: "));
+    _PP(chUnusedThreadStack(waThread1, sizeof(waThread1)));
+     _PP(" ");
+    _PP(chUnusedThreadStack(waThread2, sizeof(waThread2)));
+    _PP(" ");
+    _PP(chUnusedThreadStack(waThread2, sizeof(waThread3)));
+    _PP(" ");
+    _PP(chUnusedThreadStack(waThread2, sizeof(waThread4)));
+    _PP(" ");
+    _PP(chUnusedMainStack());
 #ifdef __arm__
-  // ARM has separate stack for ISR interrupts. 
-  _PP(" ");
-  _PP(chUnusedHandlerStack());
+    // ARM has separate stack for ISR interrupts. 
+    _PP(" ");
+    _PP(chUnusedHandlerStack());
 #endif  // __arm__
-  _PL();
+    _PL();
+    chSemSignal(&serialFree);
+    chThdSleepUntil(time);
+  }
 }

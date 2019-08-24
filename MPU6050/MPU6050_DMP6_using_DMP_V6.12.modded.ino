@@ -1,7 +1,16 @@
 /* Modified to compare Euler angles outputs according to math ops.
  *
- * Only ZXY math output seems correct, providing the angles for each axis
- *
+ * Only ZXY math output seems correct, providing the angles for each axis.
+
+ Example output for approx 42°/42°/0° MPU6050 orientation:
+   quaternion: 0.87 0.34 0.33 0.12
+   euler: 1.72 -41.34 -43.29    euler xyz: -1.72 41.34 43.29   euler zyx: 50.83 30.08 29.86   euler zxy: 42.53 42.13 -1.74   euler #300: 29.86 30.08 50.83
+ 
+ Example output for approx 32°/42°/42° MPU6050 orientation:
+   quaternion: 0.80 0.23 0.36 0.41
+   euler: -51.85 -50.26 -5.67   euler xyz: 51.84 50.26 5.67   euler zyx: 46.18 23.27 64.54   euler zxy: 31.85 41.51 42.16   euler #300: 64.53 23.27 46.17
+  
+ 
  */
 
 // I2C device class (I2Cdev) demonstration Arduino sketch for MPU6050 class using DMP (MotionApps v6.12)

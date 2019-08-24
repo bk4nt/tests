@@ -1,3 +1,9 @@
+/* Modified to compare Euler angles outputs according to math ops.
+ *
+ * Only ZXY math output seems correct.
+ *
+ */
+
 // I2C device class (I2Cdev) demonstration Arduino sketch for MPU6050 class using DMP (MotionApps v6.12)
 // 6/21/2012 by Jeff Rowberg <jeff@rowberg.net>
 // Updates should (hopefully) always be available at https://github.com/jrowberg/i2cdevlib
@@ -335,7 +341,14 @@ void loop() {
         Serial.print(q.z);
 
   //        Skipped:
-  //            mpu.dmpGetEuler(euler, &q);
+              mpu.dmpGetEuler(euler, &q);
+           Serial.print("\teuler: ");
+            Serial.print(euler[0] * 180/M_PI);
+            Serial.print(" ");
+            Serial.print(euler[1] * 180/M_PI);
+            Serial.print(" ");
+            Serial.print(euler[2] * 180/M_PI);
+
 
   // see http://bediyap.com/programming/convert-quaternion-to-euler-rotations/
   //  case xyz:

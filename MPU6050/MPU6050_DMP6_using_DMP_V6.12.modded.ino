@@ -1,6 +1,9 @@
 /* Modified to compare Euler angles outputs according to math ops.
  *
- * Only ZXY math output seems correct, providing the angles for each axis.
+ * Working with YPR output, P and R get incorrect as soon as both P and R are different from zero.
+ * Similar errors can be noticed using euler outputs.
+ *
+ * Only euler ZXY math output seems correct, providing accetable  angles outputs for each axis.
 
  Example output for approx 42°/42°/0° MPU6050 orientation:
    quaternion: 0.87 0.34 0.33 0.12

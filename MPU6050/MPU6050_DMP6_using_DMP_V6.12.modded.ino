@@ -1,6 +1,6 @@
 /* Modified to compare Euler angles outputs according to math ops.
  *
- * Only ZXY math output seems correct.
+ * Only ZXY math output seems correct, providing the angles for each axis
  *
  */
 

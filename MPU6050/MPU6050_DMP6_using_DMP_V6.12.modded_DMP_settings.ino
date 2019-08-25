@@ -7,16 +7,14 @@
     Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
     See included License.txt for License information.
 
-
  * To use this code:
- * - with any matrix for DMP orientation setup, uncomment __USE_MATRIX */
-#define __USE_MATRIX 
-/* - define an orientation matrix
- * - compile/run the code
+ * - for startup, lay the MPU6050 breakout flat, chip on top
+ * - on startup, select none (no DMP orientation setup) or one out of 4 defined matrices (will configure DMP orientation using a matrix)
  * - during runtime, press any key to switch between Euler math conventions
  * - change pich and roll, see how Euler anglss outputs vary according to selected math convention
- * 
+ * - according to matrix (chip orientation), notice euler angles signs will change
  */
+
 
 // I2C device class (I2Cdev) demonstration Arduino sketch for MPU6050 class using DMP (MotionApps v6.12)
 // 6/21/2012 by Jeff Rowberg <jeff@rowberg.net>
@@ -184,21 +182,23 @@ void dmpDataReady() {
 // ===                      INITIAL SETUP                       ===
 // ================================================================
 
-static signed char gyro_orientation[9] = { 1, 0, 0,   
-                                           0, 1, 0,   
-                                           0, 0, 1};   
+static uint8_t gyro_mtx; // 0 for none, 1..4 for any of 0 to 3
+static signed char gyro_orientation[4][9] = {
+                                          { 1, 0, 0,   
+                                            0, 1, 0,   
+                                            0, 0, 1 },
 
-//static signed char gyro_orientation[9] = { 0, -1, 0,   
-//                                           1, 0, 0,   
-//                                           0, 0, 1};   
+                                          { 0, -1, 0,   
+                                            1, 0, 0,   
+                                            0, 0, 1},   
 
-//static signed char gyro_orientation[9] = { -1, 0, 0,   
-//                                           0, -1, 0,   
-//                                           0, 0, 1};   
+                                          { -1, 0, 0,   
+                                            0, -1, 0,   
+                                            0, 0, 1},   
 
-//static signed char gyro_orientation[9] = { 0, 1, 0,   
-//                                           -1, 0, 0,   
-//                                           0, 0, 1};   
+                                          { 0, 1, 0,   
+                                            -1, 0, 0,   
+                                            0, 0, 1} };
 
 unsigned short inv_row_2_scale(const signed char *row)   
 {   
@@ -351,20 +351,26 @@ void setup() {
     Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
     // wait for ready
-    Serial.println(F("\nSend any character to begin DMP programming and demo: "));
+    Serial.println(F("\nSelect orientation matrix to begin DMP programming and demo [matrix 1..4, any other char for none]: "));
     while (Serial.available() && Serial.read()); // empty buffer
     while (!Serial.available());                 // wait for data
+    int gyro_mtx = Serial.read() - 0x30;
     while (Serial.available() && Serial.read()); // empty buffer again
+    if (gyro_mtx < 1 || gyro_mtx > 4)
+      gyro_mtx = 0;
+    if (!gyro_mtx)
+      Serial.println("Starting, not configuring DMP orientation");
 
     // load and configure the DMP
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
 
-#ifdef __USE_MATRIX
     // See also details in D:\motion_driver_6.12\msp430\eMD-6.0\core
-    dmp_set_orientation(inv_orientation_matrix_to_scalar(gyro_orientation));
-#endif
-
+    if (gyro_mtx) {
+      dmp_set_orientation(inv_orientation_matrix_to_scalar(gyro_orientation[gyro_mtx - 1]));
+      Serial.println("DMP configured using matrix " + String(gyro_mtx));
+    }
+    
     // supply your own gyro offsets here, scaled for min sensitivity
     mpu.setXGyroOffset(51);
     mpu.setYGyroOffset(8);
@@ -482,7 +488,7 @@ void threeaxisrot(float r11, float r12, float r21, float r31, float r32, float r
 // ===                    MAIN PROGRAM LOOP                     ===
 // ================================================================
 
-uint8_t convention;
+uint8_t convention = 2; // So defaults to ZXY
 
 void loop() {
     // if programming failed, don't try to do anything
@@ -616,7 +622,7 @@ void loop() {
             threeaxisrot( Quaternion_xzx , euler);
             break;
         }
-           Serial.print("\t\t" + String(convention % 12, HEX) + "\teuler " + strConvention + ": ");
+    Serial.print("\t\teuler " + strConvention + ": ");
             Serial.print(euler[0] * 180/M_PI);
             Serial.print(" ");
             Serial.print(euler[1] * 180/M_PI);

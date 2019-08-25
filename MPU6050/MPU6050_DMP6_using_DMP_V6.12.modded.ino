@@ -1,19 +1,21 @@
-/* Modified to compare Euler angles outputs according to math ops.
- *
- * Working with YPR output, P and R get incorrect as soon as both P and R are different from zero.
- * Similar errors can be noticed using euler outputs.
- *
- * Only euler ZXY math output seems correct, providing accetable  angles outputs for each axis.
+/*
+ * Added some InvenSence code to push the matrix to DMP memoy
+ * 
+ * Additionnal code was taken from InvenSence shared and public available motion_driver_6.12.zip, which is non free code:
 
- Example output for approx 42°/42°/0° MPU6050 orientation:
-   quaternion: 0.87 0.34 0.33 0.12
-   euler: 1.72 -41.34 -43.29    euler xyz: -1.72 41.34 43.29   euler zyx: 50.83 30.08 29.86   euler zxy: 42.53 42.13 -1.74   euler #300: 29.86 30.08 50.83
- 
- Example output for approx 32°/42°/42° MPU6050 orientation:
-   quaternion: 0.80 0.23 0.36 0.41
-   euler: -51.85 -50.26 -5.67   euler xyz: 51.84 50.26 5.67   euler zyx: 46.18 23.27 64.54   euler zxy: 31.85 41.51 42.16   euler #300: 64.53 23.27 46.17
-  
- 
+ $License:
+    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
+    See included License.txt for License information.
+
+
+ * To use this code:
+ * - to use the matrix for DMP orientation setup, uncomment __USE_MATRIX */
+#define __USE_MATRIX 
+/* - define any orientation matrix
+ * - compile/run the code
+ * - during runtime, press any key to switch between math conventions
+ * - change pich and roll, see how Euler anglss outputs vary according to selected math convention
+ * 
  */
 
 // I2C device class (I2Cdev) demonstration Arduino sketch for MPU6050 class using DMP (MotionApps v6.12)
@@ -182,6 +184,180 @@ void dmpDataReady() {
 // ===                      INITIAL SETUP                       ===
 // ================================================================
 
+/*
+ $License:
+    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
+    See included License.txt for License information.
+ $
+ */
+
+// ZXY
+static signed char gyro_orientation[9] = { 1, 0, 0,   
+                                           0, 1, 0,   
+                                           0, 0, 1};   
+
+// XYX
+//static signed char gyro_orientation[9] = { 0, -1, 0,   
+//                                           1, 0, 0,   
+//                                           0, 0, 1};   
+
+// ZXY
+//static signed char gyro_orientation[9] = { -1, 0, 0,   
+//                                           0, -1, 0,   
+//                                           0, 0, 1};   
+
+// XYX
+//static signed char gyro_orientation[9] = { 0, 1, 0,   
+//                                           -1, 0, 0,   
+//                                           0, 0, 1};   
+/*
+ $License:
+    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
+    See included License.txt for License information.
+ $
+ */
+
+unsigned short inv_row_2_scale(const signed char *row)   
+{   
+    unsigned short b;   
+   
+    if (row[0] > 0)   
+        b = 0;   
+    else if (row[0] < 0)   
+        b = 4;   
+    else if (row[1] > 0)   
+        b = 1;   
+    else if (row[1] < 0)   
+        b = 5;   
+    else if (row[2] > 0)   
+        b = 2;   
+    else if (row[2] < 0)   
+        b = 6;   
+    else   
+        b = 7;      // error   
+    return b;   
+}   
+
+/*
+ $License:
+    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
+    See included License.txt for License information.
+ $
+ */
+
+unsigned short inv_orientation_matrix_to_scalar(   
+    const signed char *mtx)   
+{   
+    unsigned short scalar;    
+    /*  
+       XYZ  010_001_000 Identity Matrix  
+       XZY  001_010_000  
+       YXZ  010_000_001  
+       YZX  000_010_001  
+       ZXY  001_000_010  
+       ZYX  000_001_010  
+     */   
+   
+    scalar = inv_row_2_scale(mtx);   
+    scalar |= inv_row_2_scale(mtx + 3) << 3;   
+    scalar |= inv_row_2_scale(mtx + 6) << 6;   
+   
+    return scalar;   
+} 
+
+/*
+ $License:
+    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
+    See included License.txt for License information.
+ $
+ */
+
+#define DINA4C 0x4c
+#define DINACD 0xcd
+#define DINA6C 0x6c
+
+#define DINA0C 0x0c
+#define DINAC9 0xc9
+#define DINA2C 0x2c
+
+#define DINA36 0x36
+#define DINA56 0x56
+#define DINA76 0x76
+
+#define DINA26 0x26
+#define DINA46 0x46
+#define DINA66 0x66
+
+#define FCFG_3                  (1088)
+#define FCFG_2                  (1066)
+#define FCFG_1                  (1062)
+#define FCFG_7                  (1073)
+
+#define gyro_reg_bank_sel 0x6D
+#define gyro_reg_mem_r_w  0x6F
+
+/*
+ $License:
+    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
+    See included License.txt for License information.
+ $
+ */
+
+int dmp_set_orientation(unsigned short orient)
+{
+    unsigned char gyro_regs[3], accel_regs[3];
+    const unsigned char gyro_axes[3] = {DINA4C, DINACD, DINA6C};
+    const unsigned char accel_axes[3] = {DINA0C, DINAC9, DINA2C};
+    const unsigned char gyro_sign[3] = {DINA36, DINA56, DINA76};
+    const unsigned char accel_sign[3] = {DINA26, DINA46, DINA66};
+
+    unsigned char tmp[2];
+
+    gyro_regs[0] = gyro_axes[orient & 3];
+    gyro_regs[1] = gyro_axes[(orient >> 3) & 3];
+    gyro_regs[2] = gyro_axes[(orient >> 6) & 3];
+    accel_regs[0] = accel_axes[orient & 3];
+    accel_regs[1] = accel_axes[(orient >> 3) & 3];
+    accel_regs[2] = accel_axes[(orient >> 6) & 3];
+
+    tmp[0] = (unsigned char)(FCFG_1 >> 8);
+    tmp[1] = (unsigned char)(FCFG_1 & 0xFF);
+    I2Cdev::writeBytes(0x68, 0x6D, 2, tmp);
+    I2Cdev::writeBytes(0x68, 0x6F, 3, gyro_regs);
+    tmp[0] = (unsigned char)(FCFG_2 >> 8);
+    tmp[1] = (unsigned char)(FCFG_2 & 0xFF);
+    I2Cdev::writeBytes(0x68, 0x6D, 2, tmp);
+    I2Cdev::writeBytes(0x68, 0x6F, 3, accel_regs);
+
+    memcpy(gyro_regs, gyro_sign, 3);
+    memcpy(accel_regs, accel_sign, 3);
+    if (orient & 4) {
+        gyro_regs[0] |= 1;
+        accel_regs[0] |= 1;
+    }
+    if (orient & 0x20) {
+        gyro_regs[1] |= 1;
+        accel_regs[1] |= 1;
+    }
+    if (orient & 0x100) {
+        gyro_regs[2] |= 1;
+        accel_regs[2] |= 1;
+    }
+
+    tmp[0] = (unsigned char)(FCFG_3 >> 8);
+    tmp[1] = (unsigned char)(FCFG_3 & 0xFF);
+    I2Cdev::writeBytes(0x68, 0x6D, 2, tmp);
+    I2Cdev::writeBytes(0x68, 0x6F, 3, gyro_regs);
+    tmp[0] = (unsigned char)(FCFG_7 >> 8);
+    tmp[1] = (unsigned char)(FCFG_7 & 0xFF);
+    I2Cdev::writeBytes(0x68, 0x6D, 2, tmp);
+    I2Cdev::writeBytes(0x68, 0x6F, 3, accel_regs);
+
+    return 0;
+}
+
+#define MPU6050_ADDRESS 0x68
+
 void setup() {
     // join I2C bus (I2Cdev library doesn't do this automatically)
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -196,7 +372,7 @@ void setup() {
     // really up to you depending on your project)
     Serial.begin(115200);
     while (!Serial); // wait for Leonardo enumeration, others continue immediately
-
+    
     // NOTE: 8MHz or slower host processors, like the Teensy @ 3.3V or Arduino
     // Pro Mini running at 3.3V, cannot handle this baud rate reliably due to
     // the baud timing being too misaligned with processor ticks. You must use
@@ -221,6 +397,11 @@ void setup() {
     // load and configure the DMP
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
+
+#ifdef __USE_MATRIX
+    // See also details in D:\motion_driver_6.12\msp430\eMD-6.0\core
+    dmp_set_orientation(inv_orientation_matrix_to_scalar(gyro_orientation));
+#endif
 
     // supply your own gyro offsets here, scaled for min sensitivity
     mpu.setXGyroOffset(51);
@@ -268,20 +449,88 @@ void setup() {
 }
 
 // see http://bediyap.com/programming/convert-quaternion-to-euler-rotations/
-void threeaxisrot(double r11, double r12, double r21, double r31, double r32, float res[]){
+void threeaxisrot(float r11, float r12, float r21, float r31, float r32, float res[]){
   res[0] = atan2( r31, r32 );
   res[1] = asin ( r21 );
   res[2] = atan2( r11, r12 );
 }
 
+#define Quaternion_zyx 2*(q.x*q.y + q.w*q.z),\
+                      q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,\
+                     -2*(q.x*q.z - q.w*q.y),\
+                      2*(q.y*q.z + q.w*q.x),\
+                      q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z
+#define Quaternion_zyz 2*(q.y*q.z - q.w*q.x),\
+                      2*(q.x*q.z + q.w*q.y),\
+                      q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z,\
+                      2*(q.y*q.z + q.w*q.x),\
+                      -2*(q.x*q.z - q.w*q.y)
+#define Quaternion_zxy -2*(q.x*q.y - q.w*q.z),\
+                      q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,\
+                      2*(q.y*q.z + q.w*q.x),\
+                     -2*(q.x*q.z - q.w*q.y),\
+                      q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z
+#define Quaternion_zxz 2*(q.x*q.z + q.w*q.y),\
+                  -2*(q.y*q.z - q.w*q.x),\
+                   q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z,\
+                   2*(q.x*q.z - q.w*q.y),\
+                   2*(q.y*q.z + q.w*q.x)
+#define Quaternion_yxz  2*(q.x*q.z + q.w*q.y),\
+                     q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z,\
+                    -2*(q.y*q.z - q.w*q.x),\
+                     2*(q.x*q.y + q.w*q.z),\
+                     q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z
+#define Quaternion_yxy 2*(q.x*q.y - q.w*q.z),\
+                   2*(q.y*q.z + q.w*q.x),\
+                   q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,\
+                   2*(q.x*q.y + q.w*q.z),\
+                  -2*(q.y*q.z - q.w*q.x)
+#define Quaternion_yzx -2*(q.x*q.z - q.w*q.y),\
+                      q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,\
+                      2*(q.x*q.y + q.w*q.z),\
+                     -2*(q.y*q.z - q.w*q.x),\
+                      q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z
+#define Quaternion_yzy 2*(q.y*q.z + q.w*q.x),\
+                  -2*(q.x*q.y - q.w*q.z),\
+                   q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,\
+                   2*(q.y*q.z - q.w*q.x),\
+                   2*(q.x*q.y + q.w*q.z)
+#define Quaternion_xyz -2*(q.y*q.z - q.w*q.x),\
+                    q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z,\
+                    2*(q.x*q.z + q.w*q.y),\
+                   -2*(q.x*q.y - q.w*q.z),\
+                    q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z
+#define Quaternion_xyx 2*(q.x*q.y + q.w*q.z),\
+                  -2*(q.x*q.z - q.w*q.y),\
+                   q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,\
+                   2*(q.x*q.y - q.w*q.z),\
+                   2*(q.x*q.z + q.w*q.y)
+#define Quaternion_xzy 2*(q.y*q.z + q.w*q.x),\
+                     q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,\
+                    -2*(q.x*q.y - q.w*q.z),\
+                     2*(q.x*q.z + q.w*q.y),\
+                     q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z
+#define Quaternion_xzx 2*(q.x*q.z - q.w*q.y),\
+                   2*(q.x*q.y + q.w*q.z),\
+                   q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,\
+                   2*(q.x*q.z + q.w*q.y),\
+                  -2*(q.x*q.y - q.w*q.z)
+
 // ================================================================
 // ===                    MAIN PROGRAM LOOP                     ===
 // ================================================================
+
+uint8_t convention;
 
 void loop() {
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
+    if (Serial.available()) {
+      while (Serial.available() && Serial.read());
+      convention++;
+    }
+    
     // wait for MPU interrupt or extra packet(s) available
     while (!mpuInterrupt && fifoCount < packetSize) {
         if (mpuInterrupt && fifoCount < packetSize) {
@@ -353,105 +602,65 @@ void loop() {
         Serial.print(q.z);
 
   //        Skipped:
-              mpu.dmpGetEuler(euler, &q);
-           Serial.print("\teuler: ");
+  //            mpu.dmpGetEuler(euler, &q);
+        String strConvention;
+        switch(convention % 12) {
+          case 0:
+            strConvention = "zyx";
+            threeaxisrot( Quaternion_zyx , euler);
+            break;
+          case 1:
+            strConvention = "zyz";
+            threeaxisrot( Quaternion_zyz , euler);
+            break;
+          case 2:
+            strConvention = "zxy";
+            threeaxisrot( Quaternion_zxy , euler);
+            break;
+          case 3:
+            strConvention = "zxz";
+            threeaxisrot( Quaternion_zxz , euler);
+            break;
+          case 4:
+            strConvention = "yxz";
+            threeaxisrot( Quaternion_yxz , euler);
+            break;
+          case 5:
+            strConvention = "yxy";
+            threeaxisrot( Quaternion_yxy , euler);
+            break;
+          case 6:
+            strConvention = "yzx";
+            threeaxisrot( Quaternion_yzx , euler);
+            break;
+          case 7:
+            strConvention = "yzy";
+            threeaxisrot( Quaternion_yzy , euler);
+            break;
+          case 8:
+            strConvention = "xyz";
+            threeaxisrot( Quaternion_xyz , euler);
+            break;
+          case 9:
+            strConvention = "xyx";
+            threeaxisrot( Quaternion_xyx , euler);
+            break;
+          case 10:
+            strConvention = "xzy";
+            threeaxisrot( Quaternion_xzy , euler);
+            break;
+          case 11:
+            strConvention = "xzx";
+            threeaxisrot( Quaternion_xzx , euler);
+            break;
+        }
+           Serial.print("\t\t" + String(convention % 12, HEX) + "\teuler " + strConvention + ": ");
             Serial.print(euler[0] * 180/M_PI);
             Serial.print(" ");
             Serial.print(euler[1] * 180/M_PI);
             Serial.print(" ");
             Serial.print(euler[2] * 180/M_PI);
 
-
-  // see http://bediyap.com/programming/convert-quaternion-to-euler-rotations/
-  //  case xyz:
-      threeaxisrot( -2*(q.y*q.z - q.w*q.x),
-                    q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z,
-                    2*(q.x*q.z + q.w*q.y),
-                   -2*(q.x*q.y - q.w*q.z),
-                    q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,
-                    euler);
-           Serial.print("\teuler xyz: ");
-            Serial.print(euler[0] * 180/M_PI);
-            Serial.print(" ");
-            Serial.print(euler[1] * 180/M_PI);
-            Serial.print(" ");
-            Serial.print(euler[2] * 180/M_PI);
-
-  // see http://bediyap.com/programming/convert-quaternion-to-euler-rotations/
-  //    case zyx:
-      threeaxisrot( 2*(q.x*q.y + q.w*q.z),
-                     q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z,
-                    -2*(q.x*q.z - q.w*q.y),
-                     2*(q.y*q.z + q.w*q.x),
-                     q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z,
-                     euler);
-            Serial.print("\teuler zyx: ");
-            Serial.print(euler[0] * 180/M_PI);
-            Serial.print(" ");
-            Serial.print(euler[1] * 180/M_PI);
-            Serial.print(" ");
-            Serial.print(euler[2] * 180/M_PI);
-
-  // see http://bediyap.com/programming/convert-quaternion-to-euler-rotations/
-  //    case zxy:
-      threeaxisrot( -2*(q.x*q.y - q.w*q.z),
-                      q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z,
-                      2*(q.y*q.z + q.w*q.x),
-                     -2*(q.x*q.z - q.w*q.y),
-                      q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z,
-                      euler);
-            Serial.print("\teuler zxy: ");
-            Serial.print(euler[0] * 180/M_PI);
-            Serial.print(" ");
-            Serial.print(euler[1] * 180/M_PI);
-            Serial.print(" ");
-            Serial.print(euler[2] * 180/M_PI);
-
-  // see https://github.com/jrowberg/i2cdevlib/issues/300
-  /* "Quaternion to euler angle conversion function "uint8_t MPU6050::dmpGetEuler(float *data, Quaternion *q)"   
-   * seems to be wrong placed in "MPU6050_6Axis_MotionApps20.h" if standart Tait Bryan angles is used as
-   * transformation convention (ZYX rotation). We may refer to wikipedia link below:
-   * https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles"
-    */
-  float data[3];
-  data[0] = atan2(2*(q.w*q.z + q.x*q.y), 1-2*(q.y*q.y + q.z*q.z));   // psi
-  data[1] = asin(2*(q.w*q.y - q.z*q.x));    // theta
-  data[2] = atan2(2*(q.w*q.x + q.y*q.z),1-2*(q.x*q.x+q.y*q.y));   // phi
-            Serial.print("\teuler #300: ");
-            Serial.print(data[0] * 180/M_PI);
-            Serial.print(" ");
-            Serial.print(data[1] * 180/M_PI);
-            Serial.print(" ");
-            Serial.print(data[2] * 180/M_PI);
-
-            mpu.dmpGetGravity(&gravity, &q);
-
-        Serial.print("\tgravity: ");
-        Serial.print(gravity.x);
-        Serial.print(" ");
-        Serial.print(gravity.y);
-        Serial.print(" ");
-        Serial.print(gravity.z);
-
-            mpu.dmpGetAccel(&aa, fifoBuffer);
-            mpu.dmpGetGravity(&gravity, &q);
-            mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-            Serial.print("\tareal: ");
-            Serial.print(aaReal.x);
-            Serial.print(" ");
-            Serial.print(aaReal.y);
-            Serial.print(" ");
-            Serial.print(aaReal.z);
-
-            mpu.dmpGetAccel(&aa, fifoBuffer);
-            mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-            mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-            Serial.print("\taworld:");
-            Serial.print(aaWorld.x);
-            Serial.print(" ");
-            Serial.print(aaWorld.y);
-            Serial.print(" ");
-            Serial.print(aaWorld.z);
             
             Serial.println("");
  #endif

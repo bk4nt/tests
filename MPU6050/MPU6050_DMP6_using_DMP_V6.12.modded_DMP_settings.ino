@@ -9,9 +9,11 @@
 
 
  * To use this code:
- * - uncomment or define any orientation matrix
+ * - with any matrix for DMP orientation setup, uncomment __USE_MATRIX */
+#define __USE_MATRIX 
+/* - define an orientation matrix
  * - compile/run the code
- * - during runtime, press any key to switch between math conventions
+ * - during runtime, press any key to switch between Euler math conventions
  * - change pich and roll, see how Euler anglss outputs vary according to selected math convention
  * 
  */
@@ -182,38 +184,21 @@ void dmpDataReady() {
 // ===                      INITIAL SETUP                       ===
 // ================================================================
 
-/*
- $License:
-    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
-    See included License.txt for License information.
- $
- */
+static signed char gyro_orientation[9] = { 1, 0, 0,   
+                                           0, 1, 0,   
+                                           0, 0, 1};   
 
-// Defaults to ZXY
-//static signed char gyro_orientation[9] = { 1, 0, 0,   
-//                                           0, 1, 0,   
-//                                           0, 0, 1};   
-
-// Almost XYX (some 0.5 to 1 degree error?)
 //static signed char gyro_orientation[9] = { 0, -1, 0,   
 //                                           1, 0, 0,   
 //                                           0, 0, 1};   
 
-// ZXY
 //static signed char gyro_orientation[9] = { -1, 0, 0,   
 //                                           0, -1, 0,   
 //                                           0, 0, 1};   
 
-// Almost XYX (some 0.5 to 1 degree error ?)
-static signed char gyro_orientation[9] = { 0, 1, 0,   
-                                           -1, 0, 0,   
-                                           0, 0, 1};   
-/*
- $License:
-    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
-    See included License.txt for License information.
- $
- */
+//static signed char gyro_orientation[9] = { 0, 1, 0,   
+//                                           -1, 0, 0,   
+//                                           0, 0, 1};   
 
 unsigned short inv_row_2_scale(const signed char *row)   
 {   
@@ -236,13 +221,6 @@ unsigned short inv_row_2_scale(const signed char *row)
     return b;   
 }   
 
-/*
- $License:
-    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
-    See included License.txt for License information.
- $
- */
-
 unsigned short inv_orientation_matrix_to_scalar(   
     const signed char *mtx)   
 {   
@@ -262,13 +240,6 @@ unsigned short inv_orientation_matrix_to_scalar(
    
     return scalar;   
 } 
-
-/*
- $License:
-    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
-    See included License.txt for License information.
- $
- */
 
 #define DINA4C 0x4c
 #define DINACD 0xcd
@@ -293,13 +264,6 @@ unsigned short inv_orientation_matrix_to_scalar(
 
 #define gyro_reg_bank_sel 0x6D
 #define gyro_reg_mem_r_w  0x6F
-
-/*
- $License:
-    Copyright (C) 2011-2012 InvenSense Corporation, All Rights Reserved.
-    See included License.txt for License information.
- $
- */
 
 int dmp_set_orientation(unsigned short orient)
 {
@@ -396,8 +360,10 @@ void setup() {
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
 
-    // See D:\motion_driver_6.12\msp430\eMD-6.0\core
+#ifdef __USE_MATRIX
+    // See also details in D:\motion_driver_6.12\msp430\eMD-6.0\core
     dmp_set_orientation(inv_orientation_matrix_to_scalar(gyro_orientation));
+#endif
 
     // supply your own gyro offsets here, scaled for min sensitivity
     mpu.setXGyroOffset(51);
@@ -602,7 +568,7 @@ void loop() {
         String strConvention;
         switch(convention % 12) {
           case 0:
-            strConvention = "xyx";
+            strConvention = "zyx";
             threeaxisrot( Quaternion_zyx , euler);
             break;
           case 1:
